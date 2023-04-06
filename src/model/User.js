@@ -3,12 +3,11 @@ const db = require('../database/config')
 module.exports = class User {
   static create () {
     const sql = `CREATE TABLE IF NOT EXISTS User(
-              id INTEGER PRIMARY KEY AUTOINCREMENT,
-              IdUser VARCHAR(64)
-            );`
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                IdUser VARCHAR(64) UNIQUE NOT NULL
+              );`
     db.run(sql, (err, result) => {
       if (err) throw err
-      console.log('Table created')
     })
   }
 
@@ -17,24 +16,48 @@ module.exports = class User {
     return result
   }
 
-  static async isExisting (idCard) {
-    let result
-    const sql = 'SELECT * FROM User'
+  static async get (idCard) {
+    const sql = idCard === undefined ? 'SELECT * FROM User' : 'SELECT * FROM User WHERE IdUser = (?)'
 
-    db.all(sql, async (err, rows) => {
-      if (err) throw err
+    return new Promise((resolve, reject) => {
+      db.all(sql, [idCard], (err, rows) => {
+        if (err) reject(err)
 
-      if (rows.length > 0) {
-        global.result = rows
-        console.log(rows)
-      } else {
-        console.log('tidak ada data/hasil')
-      }
+        if (rows?.length > 0) resolve(rows)
+        else resolve([])
+      })
     })
-    console.log(result)
+  }
+
+  static async isExisting (idCard) {
+    const sql = 'SELECT IdUser FROM User WHERE IdUser = (?)'
+
+    return new Promise((resolve, reject) => {
+      db.all(sql, [idCard], (err, rows) => {
+        if (err) reject(err)
+
+        if (rows?.length > 0) resolve(true)
+        else resolve(false)
+      })
+    })
+  }
+
+  static async delete (idCard) {
+    const sql = 'DELETE FROM User WHERE id=?'
+    const existingUser = (await this.get(idCard))?.[0]
+    console.log(existingUser)
+
+    return new Promise((resolve, reject) => {
+      if (!existingUser) reject(new Error('Data yang akan dihapus tidak ditemukan'))
+
+      const id = existingUser.id
+      db.run(sql, [id], (err) => {
+        if (!err) resolve('Data deleted')
+      })
+    })
   }
 
   static async close () {
-    return await db.close()
+    await db.close()
   }
 }
