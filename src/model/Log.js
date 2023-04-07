@@ -20,9 +20,9 @@ class Logger {
     return `${date.toISOString().split('T')[0]} ${date.toISOString().split('T')[1]} - ${type} - ${user} - ${message}`
   }
 
-  static logUserAction ({ idCard, success, message }) {
+  static logGatewayAction ({ idGateway, idCard, success, message }) {
     this.Log(this.format({
-      user: `ID:${idCard}`,
+      user: `${idGateway}::${idCard}`,
       type: success ? 'INFO' : 'WARN',
       message
     }))

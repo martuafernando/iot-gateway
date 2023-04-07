@@ -5,7 +5,7 @@ const db = new sqlite3.Database(dbFile, sqlite3.OPEN_READWRITE, (err) => {
   if (err) throw err
 })
 
-module.exports = class GatewayEntry {
+module.exports = class UserEntry {
   static create () {
     const sql = `CREATE TABLE IF NOT EXISTS User(
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
