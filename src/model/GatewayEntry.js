@@ -1,6 +1,11 @@
-const db = require('../database/config')
+const sqlite3 = require('sqlite3').verbose()
+const dbFile = './src/database/user.db'
 
-module.exports = class User {
+const db = new sqlite3.Database(dbFile, sqlite3.OPEN_READWRITE, (err) => {
+  if (err) throw err
+})
+
+module.exports = class GatewayEntry {
   static create () {
     const sql = `CREATE TABLE IF NOT EXISTS User(
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -45,7 +50,6 @@ module.exports = class User {
   static async delete (idCard) {
     const sql = 'DELETE FROM User WHERE id=?'
     const existingUser = (await this.get(idCard))?.[0]
-    console.log(existingUser)
 
     return new Promise((resolve, reject) => {
       if (!existingUser) reject(new Error('Data yang akan dihapus tidak ditemukan'))
