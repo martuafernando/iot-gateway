@@ -1,5 +1,5 @@
 const fs = require('fs')
-const logFile = fs.createWriteStream('./log/' + new Date(new Date().setHours(new Date().getHours() + 7)).toISOString().split('T')[0] + '.log', { flags: 'a' })
+const logFile = fs.createWriteStream('./logs/' + new Date(new Date().setHours(new Date().getHours() + 7)).toISOString().split('T')[0] + '.log', { flags: 'a' })
 const logStdout = process.stdout
 const util = require('util')
 

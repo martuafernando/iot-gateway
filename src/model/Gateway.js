@@ -30,14 +30,14 @@ module.exports = class Gateway {
       if (!isInsideGate && this.isEnterGateway) {
         UserEntry.insert(idCard.toString())
         Logger.logGatewayAction({ idGateway: this.id, idCard: categorizedIdCard, success: true, message: 'Success to enter the gate' })
-        return 1
+        return true
       } else {
         Logger.logGatewayAction({ idGateway: this.id, idCard: categorizedIdCard, success: false, message: 'Failed to enter the gate: the user is already in' })
-        return 0
+        return false
       }
     } else {
       Logger.logGatewayAction({ idGateway: this.id, idCard, success: false, message: 'Failed to enter the gate: User is not registered student' })
-      return 0
+      return false
     }
   }
 
@@ -46,14 +46,14 @@ module.exports = class Gateway {
       if (isInsideGate && this.isExitGateway) {
         UserEntry.delete(idCard.toString())
         Logger.logGatewayAction({ idGateway: this.id, idCard: categorizedIdCard, success: true, message: 'Success to exit the gate' })
-        return 1
+        return true
       } else {
         Logger.logGatewayAction({ idGateway: this.id, idCard: categorizedIdCard, success: false, message: 'Failed to enter the gate: the user is already exited' })
-        return 0
+        return false
       }
     } else {
       Logger.logGatewayAction({ idGateway: this.id, idCard, success: false, message: 'Failed to enter the gate: User is not registered student' })
-      return 0
+      return false
     }
   }
 }
