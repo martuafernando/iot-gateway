@@ -1,15 +1,21 @@
 const mqtt = require('mqtt')
+require('dotenv').config()
 const UserEntry = require('./model/UserEntry')
 const Logger = require('./model/Log')
 const Student = require('./model/Student')
 const Gateway = require('./model/Gateway')
 const gatewayConfig = require('./config/gatewayConfig')
+const GateLog = require('./model/GateLog')
+const GateStudent = require('./model/GateStudent')
 const client = mqtt.connect('mqtt://broker.hivemq.com')
 
 try {
+  console.log(process.env)
   Logger.logProgramAction({ success: true, message: 'Server Started' })
   UserEntry.create()
   Student.create()
+  GateStudent.isIdGateValid('7')
+  GateLog.cek()
 } catch (error) {
   Logger.logFatalError(error)
   process.exit()
@@ -24,7 +30,7 @@ client.on('connect', function () {
   client.subscribe(idGateway)
 
   idGateway.forEach((id) => {
-    const config = gatewayConfig.filter((it) => it.id === id)?.[0]
+    const config = gatewayConfig.find((it) => it.id === id)
     buildedGateway.push(
       new Gateway(config)
     )
@@ -33,8 +39,8 @@ client.on('connect', function () {
 
 client.on('message', async function (topic, idCard) {
   try {
-    const gateway = buildedGateway.filter((it) => it.id === topic)?.[0]
-    const result = await gateway.action(idCard) ? 'true' : 'false'
+    const gateway = buildedGateway.find((it) => it.id === topic)
+    const result = await gateway.action(idCard.toString()) ? 'true' : 'false'
     client.publish(gateway.sendId, result)
   } catch (error) {
     Logger.logFatalError(error)

@@ -1,87 +1,43 @@
-#include <WiFi.h>
+#include <ESP8266WiFi.h>
 #include <PubSubClient.h>
-#include <SPI.h>
 #include <Adafruit_PN532.h>
 
-// WIFI
-const char* ssid = "V2043";
-const char* password = "testing1";
+#define RED_LED_PIN D0
+#define YELLOW_LED_PIN D1
+#define GREEN_LED_PIN D2
+#define SCK_PIN D5
+#define MISO_PIN D6
+#define MOSI_PIN D7
+#define SS_PIN D8
+#define STATUS_DURATION 500
+// Update these with your network credentials
+const char* ssid = "SUPER WIN";
+const char* password = "kamutanya";
+char temp[100] = "";
 
-// SERVER
-const char* mqtt_server = "broker.hivemq.com";
-const uint16_t port_server = 1883;
-const char* subscribeId = "gTkyy9LWTRiRm7Erxn5YWPGjHxG3ySVjTxPXV6p3kUz57ZLuLY34CkWceA5qhkxnAVQUqez3ixx5TEv7SAm2QAfURu8wyHxvue8n";
+// MQTT broker details
+const char* mqttServer = "broker.hivemq.com";
+const int mqttPort = 1883;
 const char* publishId = "X3ZKeVcLzT3QxLumypkf33jMSWHAUF7f83f5quhNy6yV8G4jVRJPjuxMZzHGcrQRSyUPjV7CBmFmwvTHqP2zf4n3Uz2fGBRUC8QS";
-String idcard, receivedMessage;
-
-// PIN
-const int RED_LED_PIN = 4;
-const int YELLOW_LED_PIN = 2;
-const int GREEN_LED_PIN = 5;
-#define PN532_SCK  (18)
-#define PN532_MISO (19)
-#define PN532_MOSI (23)
-#define PN532_SS   (27)
+const char* subscribeId = "gTkyy9LWTRiRm7Erxn5YWPGjHxG3ySVjTxPXV6p3kUz57ZLuLY34CkWceA5qhkxnAVQUqez3ixx5TEv7SAm2QAfURu8wyHxvue8n";
+bool receivedResponse = false;
+unsigned long previousTime = 0;
 
 WiFiClient espClient;
 PubSubClient client(espClient);
-Adafruit_PN532 nfc(PN532_SCK, PN532_MISO, PN532_MOSI, PN532_SS);
+Adafruit_PN532 nfc(SCK_PIN, MISO_PIN, MOSI_PIN, SS_PIN);
 
-void turnOnRedLed() {
-  digitalWrite(RED_LED_PIN, HIGH);
-  digitalWrite(YELLOW_LED_PIN, LOW);
-  digitalWrite(GREEN_LED_PIN, LOW);
-}
-
-void turnOnYellowLed() {
-  digitalWrite(RED_LED_PIN, LOW);
-  digitalWrite(YELLOW_LED_PIN, HIGH);
-  digitalWrite(GREEN_LED_PIN, LOW);
-}
-
-void turnOnGreenLed() {
-  digitalWrite(RED_LED_PIN, LOW);
-  digitalWrite(YELLOW_LED_PIN, LOW);
-  digitalWrite(GREEN_LED_PIN, HIGH);
-}
-
-void turnOffLed(){
-  digitalWrite(RED_LED_PIN, LOW);
-  digitalWrite(YELLOW_LED_PIN, LOW);
-  digitalWrite(GREEN_LED_PIN, LOW);
-}
-
-void callback(char* topic, byte* payload, unsigned int length) {
-  receivedMessage = "";
-  Serial.print("Message received on topic: ");
-  Serial.println(topic);
-  Serial.print("Message: ");
-  for (int i = 0; i < length; i++) {
-    Serial.print((char)payload[i]);
-    receivedMessage += (char)payload[i];
-  }
-  if (receivedMessage == "true"){
-    turnOnGreenLed();
-    delay(2000);
-  }
-  Serial.println();
-  turnOnRedLed();
-}
 
 void setup() {
-  Serial.begin(115200);
-  WiFi.begin(ssid, password);
-  nfc.begin();
-
+  Serial.begin(9600);
   pinMode(RED_LED_PIN, OUTPUT);
   pinMode(YELLOW_LED_PIN, OUTPUT);
   pinMode(GREEN_LED_PIN, OUTPUT);
+  delay(10);
 
+  // PN532 Setup
+  nfc.begin();
   uint32_t versiondata = nfc.getFirmwareVersion();
-
-  Serial.print("Found chip PN5"); Serial.println((versiondata >> 24) & 0xFF, HEX);
-  Serial.print("Firmware ver. "); Serial.print((versiondata >> 16) & 0xFF, DEC);
-  Serial.print('.'); Serial.println((versiondata >> 8) & 0xFF, DEC);
 
   nfc.SAMConfig();
 
@@ -90,58 +46,96 @@ void setup() {
     while (1); // halt
   }
 
+  // Connect to Wi-Fi
+  WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
-    delay(1000);
-    Serial.println("Connecting to WiFi...");
+    showMessage(YELLOW_LED_PIN, 1, STATUS_DURATION, "Connecting...");
   }
-  Serial.println("Connected to WiFi network");
 
-  client.setServer(mqtt_server, port_server);
+  Serial.println("");
+  Serial.println("Wi-Fi connected");
+
+  // Connect to MQTT broker
+  client.setServer(mqttServer, mqttPort);
   client.setCallback(callback);
-}
 
-void loop() {
-  client.loop();
-  if (!client.connected()) {
-    reconnect();
-  }
-  turnOnRedLed();
-
-  uint8_t success;
-  uint8_t uid[] = { 0, 0, 0, 0, 0, 0, 0 };  // Buffer to store the returned UID
-  uint8_t uidLength;
-
-  success = nfc.readPassiveTargetID(PN532_MIFARE_ISO14443A, uid, &uidLength);
-
-  if (success) {
-    turnOnYellowLed();
-    idcard = "";
-    for (byte i = 0; i <= uidLength - 1; i++) {
-      idcard += (uid[i] < 0x10 ? "0" : "") + String(uid[i], HEX);
-    }
-
-    const char* message = idcard.c_str();
-    client.publish(publishId, message);
-    Serial.print("ID CARD : ");
-    Serial.print(idcard);
-    Serial.println("");
-    delay(500);
-  }
-}
-
-void reconnect() {
   while (!client.connected()) {
-    turnOnYellowLed();
-    Serial.println("Connecting to MQTT broker...");
+    Serial.println("Connecting to MQTT server...");
     if (client.connect(subscribeId)) {
-      Serial.println("Connected to MQTT broker");
-      turnOnRedLed();
+      Serial.println("Connected to MQTT server");
       client.subscribe(subscribeId);
     } else {
-      Serial.print("Failed to connect to MQTT broker, rc=");
+      Serial.print("Failed with state ");
       Serial.print(client.state());
-      Serial.println(" retrying in 5 seconds");
-      delay(5000);
+      delay(2000);
     }
   }
 }
+
+void loop(void) {
+  digitalWrite(YELLOW_LED_PIN, HIGH);
+  digitalWrite(RED_LED_PIN, LOW);
+  digitalWrite(GREEN_LED_PIN, LOW);
+  uint8_t uid[] = { 0, 0, 0, 0, 0, 0, 0 };
+  uint8_t uidLength;
+  
+  if (nfc.readPassiveTargetID(PN532_MIFARE_ISO14443A, uid, &uidLength)) {
+    strcpy(temp, "");
+    for (uint8_t i = 0; i < uidLength; i++) {
+      sprintf(temp, "%s%d", temp, uid[i]);
+    }
+    Serial.println(temp);
+    sendData(temp);
+  }
+}
+
+void sendData(const char* message){
+  turnOnAllLed();
+  client.publish(publishId, message);
+
+  previousTime = millis();
+  while (!receivedResponse) {
+    client.loop();
+
+    if (millis() - previousTime > 10000) {
+      Serial.println("No response received. Timeout.");
+      break;
+    }
+  }
+
+  receivedResponse = false;
+}
+
+void callback(char* topic, byte* payload, unsigned int length) {
+  strcpy(temp, "");
+  for (uint8_t i = 0; i < length; i++) {
+    sprintf(temp, "%s%c", temp, (char)payload[i]);
+  }
+
+  receivedResponse = true;
+  turnOffAllLed();
+  if (strcmp(temp, "true") == 0) showMessage(GREEN_LED_PIN, 3, STATUS_DURATION, "success");
+  else showMessage(RED_LED_PIN, 3, STATUS_DURATION, "failed");
+}
+
+void turnOnAllLed() {
+  digitalWrite(RED_LED_PIN, HIGH);
+  digitalWrite(YELLOW_LED_PIN, HIGH);
+  digitalWrite(GREEN_LED_PIN, HIGH);
+}
+
+void turnOffAllLed() {
+  digitalWrite(RED_LED_PIN, LOW);
+  digitalWrite(YELLOW_LED_PIN, LOW);
+  digitalWrite(GREEN_LED_PIN, LOW);
+}
+
+
+void showMessage(uint8_t ledPin, uint8_t blinkCount, int duration, const char* errorMessage) {
+  Serial.println(errorMessage);
+  for(uint8_t i=0; i<blinkCount*2; i++){
+    digitalWrite(ledPin, !digitalRead(ledPin));
+    delay(duration / blinkCount / 2);
+  }
+}
+

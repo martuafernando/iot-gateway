@@ -51,7 +51,6 @@ module.exports = class Student {
   static async delete (idCard) {
     const sql = 'DELETE FROM Student WHERE id=?'
     const existingUser = (await this.get(idCard))?.[0]
-    console.log(existingUser)
 
     return new Promise((resolve, reject) => {
       if (!existingUser) reject(new Error('Data yang akan dihapus tidak ditemukan'))
